@@ -3,9 +3,8 @@
 //
 // 原則：資料沒變就不寫、不 commit，所以抓得再頻繁，repo 也不會長出一堆沒有意義的 commit。
 
-export const SCHEMA = 1;
+export const SCHEMA = 2;   // 2：schools 從「每縣市幾所」改成「每縣市的逐筆清單」
 export const HEARTBEAT_MS = 6 * 60 * 60 * 1000;   // 就算沒有變化，每隔這段時間也寫一次 checkedAt，讓讀取資料的人看得出資料還新
-export const KEEP_SCHOOL_LEVEL = false;           // 單一學校的停課（常見於山區學校）不逐筆存，只記每個縣市有幾所
 
 const isStop = (item) => item.work || item.school;
 
@@ -15,11 +14,9 @@ export function contentOf(parsed) {
   const schools = {};
   for (const item of parsed.items) {
     if (!isStop(item)) continue;
-    if (item.scopeKind === 'school') {
-      schools[item.city] = (schools[item.city] || 0) + 1;
-      continue;
-    }
-    (cities[item.city] = cities[item.city] || []).push(publicItem(item));
+    // 單一學校另外放在 schools，不混在 cities 裡：只關心縣市與鄉鎮區的人不會被學校的項目干擾
+    const bucket = item.scopeKind === 'school' ? schools : cities;
+    (bucket[item.city] = bucket[item.city] || []).push(publicItem(item));
   }
   for (const u of parsed.unknown) {
     (cities[u.city] = cities[u.city] || []).push({ unknown: true, text: u.text });
@@ -30,7 +27,9 @@ export function contentOf(parsed) {
     sortedCities[city] = cities[city].sort((a, b) => key(a).localeCompare(key(b)));
   }
   const sortedSchools = {};
-  for (const city of Object.keys(schools).sort()) sortedSchools[city] = schools[city];
+  for (const city of Object.keys(schools).sort()) {
+    sortedSchools[city] = schools[city].sort((a, b) => key(a).localeCompare(key(b)));
+  }
 
   const hasStop = Object.values(sortedCities).some((list) => list.some((i) => !i.unknown));
   let state = 'none';
@@ -116,7 +115,6 @@ export function mergeHistory(existing, items, now) {
   const changedYears = new Set();
 
   for (const item of items) {
-    if (item.scopeKind === 'school' && !KEEP_SCHOOL_LEVEL) continue;
     const k = recordKey(item);
     const old = records.get(k);
     if (!old && !isStop(item)) continue;   // 從來沒停過、現在也沒停：不用記

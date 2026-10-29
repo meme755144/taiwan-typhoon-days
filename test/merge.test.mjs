@@ -17,7 +17,7 @@ test('contentOf：沒有任何停班停課 → none', () => {
   assert.deepEqual(c.cities, {});
 });
 
-test('contentOf：縣市與範圍（區）列入，學校只算數量', () => {
+test('contentOf：縣市與範圍（區）列入 cities，單一學校另外列在 schools', () => {
   const c = contentOf(parsedOf([
     mk(),
     mk({ city: '花蓮縣', scope: '光復鄉', scopeKind: 'area', text: '10/30停止上班、停止上課。' }),
@@ -27,13 +27,15 @@ test('contentOf：縣市與範圍（區）列入，學校只算數量', () => {
   assert.equal(c.state, 'announced');
   assert.deepEqual(Object.keys(c.cities), ['臺北市', '花蓮縣']);   // 依字碼排序，順序固定即可
   assert.equal(c.cities['花蓮縣'].length, 1);
-  assert.deepEqual(c.schools, { 花蓮縣: 2 });
+  assert.deepEqual(Object.keys(c.schools), ['花蓮縣']);
+  assert.deepEqual(c.schools['花蓮縣'].map((s) => [s.scope, s.scopeKind]), [['花蓮縣光復鄉大全國民小學', 'school'], ['花蓮縣光復鄉富源國民小學', 'school']]);
 });
 
-test('contentOf：只有學校停課不算 announced', () => {
+test('contentOf：只有學校停課不算 announced，但學校會列出來', () => {
   const c = contentOf(parsedOf([mk({ scope: '某國小', scopeKind: 'school', work: false })]));
   assert.equal(c.state, 'none');
-  assert.deepEqual(c.schools, { 臺北市: 1 });
+  assert.equal(c.schools['臺北市'].length, 1);
+  assert.deepEqual(c.cities, {});
 });
 
 test('contentOf：看不懂的句子與無法辨認的內容 → unparsed；有看得懂的停班停課時仍是 announced', () => {
@@ -117,10 +119,12 @@ test('歷史：新增、第一次看到的時間保留、內容沒變就不動',
   assert.equal(changed.records[0].from, '13:00');
 });
 
-test('歷史：從來沒停過的不記；單一學校不逐筆記；撤銷時改成都是 false 而不是刪除', () => {
+test('歷史：從來沒停過的不記；單一學校也逐筆記；撤銷時改成都是 false 而不是刪除', () => {
   const t1 = new Date('2026-10-29T12:00:00Z'), t2 = new Date('2026-10-29T13:00:00Z');
   assert.equal(mergeHistory([], [mk({ work: false, school: false })], t1).records.length, 0);
-  assert.equal(mergeHistory([], [mk({ scope: '某國小', scopeKind: 'school' })], t1).records.length, 0);
+  const school = mergeHistory([], [mk({ scope: '某國小', scopeKind: 'school' })], t1).records;
+  assert.equal(school.length, 1);
+  assert.equal(school[0].scopeKind, 'school');
 
   const stop = mergeHistory([], [mk()], t1).records;
   const revoked = mergeHistory(stop, [mk({ work: false, school: false, text: '10/30照常上班、照常上課。' })], t2);

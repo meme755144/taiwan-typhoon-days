@@ -19,10 +19,10 @@ https://raw.githubusercontent.com/meme755144/taiwan-typhoon-days/main/data/histo
 
 | 欄位 | 說明 |
 | --- | --- |
-| `schema` | 格式版本，目前是 1 |
+| `schema` | 格式版本，目前是 2 |
 | `state` | `none` 沒有停班停課；`announced` 有；`unparsed` 頁面有內容但看不懂 |
 | `cities` | 有停班或停課的縣市。key 是縣市名（一律用「臺」），value 是一串項目 |
-| `schools` | 各縣市有幾所學校單獨停課（只記數量，不逐筆存） |
+| `schools` | 單一學校的停課，依縣市分組，項目格式同 `cities`（`scopeKind` 是 `school`）。獨立一欄，不混在 `cities` 裡 |
 | `unparsedText` | `state` 是 `unparsed` 且認不出縣市時，頁面表格的文字 |
 | `checkedAt` | 最近一次寫檔的時間（UTC）。沒有變化時最多每 6 小時才更新一次，所以超過約 8 小時沒更新，就代表爬蟲可能停了 |
 | `pageDate`, `pageUpdatedAt` | 頁面標題的日期、頁面上的「更新時間」（台灣時間，`+08:00`） |
@@ -38,7 +38,7 @@ https://raw.githubusercontent.com/meme755144/taiwan-typhoon-days/main/data/histo
 | 欄位 | 說明 |
 | --- | --- |
 | `date` | 這筆公告適用的日期（頁面上的「今天」「明天」已換算成日期） |
-| `scope`, `scopeKind` | `scope` 空的是整個縣市（`city`）；有寫的是鄉鎮區、村里（`area`）。單一學校（`school`）不放在這裡 |
+| `scope`, `scopeKind` | `scope` 空的是整個縣市（`city`）；有寫的是鄉鎮區、村里（`area`）。單一學校（`school`）放在 `schools`，不在 `cities` 裡 |
 | `work`, `school` | 是否停止上班、停止上課 |
 | `period`, `from` | 半天或從幾點開始，例如 `afternoon`、`13:00`；全天則是空字串 |
 
@@ -46,7 +46,7 @@ https://raw.githubusercontent.com/meme755144/taiwan-typhoon-days/main/data/histo
 
 ### `data/history/{年}.json`：歷史紀錄
 
-每個「日期＋縣市＋範圍」一筆，欄位同上，另有 `firstSeen`（第一次看到的時間）和 `updatedAt`（內容最後一次改變）。公告被撤銷時不刪除，改成 `work`、`school` 都是 `false`。單一學校不記。檔案很小：一年大約幾十筆，十年也不到 100 KB。
+每個「日期＋縣市＋範圍」一筆，欄位同上，另有 `firstSeen`（第一次看到的時間）和 `updatedAt`（內容最後一次改變）。公告被撤銷時不刪除，改成 `work`、`school` 都是 `false`。縣市、鄉鎮區、單一學校都會記（用 `scopeKind` 區分）。依 2024–2026 年的歷史公告估算，一年大約 240～630 筆、85～225 KB（颱風多的年份較大），十年大約 1～2 MB；依年分檔，單一檔案不會太大。
 
 > 歷史紀錄從 **2026-10-29** 開始累積，更早的補不回來；爬蟲沒在跑的時段，錯過的公告也記不到。
 
@@ -103,7 +103,8 @@ GitHub Actions 的排程不準時，常延遲 5～30 分鐘，偶爾會跳過，
 
 - 句子的格式是用 2024–2026 年的歷次公告整理出來的，一共 24 種句型（例如「明天停止上班、停止上課。」「今天下午01:00起停止上班、停止上課。」「今天已達停止上班及上課標準。」），[`test/parse.test.mjs`](test/parse.test.mjs) 全部都有測。「已達標準」視同停班停課。
 - 沒有公告時，真實頁面只有一列「無停班停課訊息。」，已用實際抓到的頁面測過。**有公告時各縣市列的確切 HTML 沒有樣本**，目前是依表格結構（縣市在一格、狀態在另一格，也支援多一欄區域的寫法）與歷史句型推測的。第一次真的有颱風公告時請檢查輸出；解析不了時會走 `unparsed`，不會漏報。
-- 單一學校的停課（山區學校常見）只記數量，不逐筆存。要存的話，把 `src/merge.mjs` 的 `KEEP_SCHOOL_LEVEL` 改成 `true`。
+- 範圍的分類（縣市、鄉鎮區、單一學校）是靠名稱判斷：名稱裡有「國小、國中、高中、幼兒園、學校、托兒所」等字的算學校，其餘有寫範圍的算鄉鎮區。判斷錯的話，歷史紀錄裡仍保留原始的 `scope` 文字，可以事後重新分類。
+- 一個句子如果列了多所學校（例如「某某國小附設幼兒園、某某國小附設幼兒園」），會存成一筆，`scope` 是整串名稱。
 
 ## 開發
 

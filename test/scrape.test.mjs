@@ -72,10 +72,12 @@ test('完整流程：無公告 → 304 → 公告 → 內容不變 → 心跳 �
     assert.deepEqual(Object.keys(latest.cities), ['臺北市', '花蓮縣'].sort());
     assert.equal(latest.cities['臺北市'].length, 1);
     assert.equal(latest.cities['臺北市'][0].date, '2026-10-30');
-    assert.deepEqual(latest.schools, { 花蓮縣: 1 });
+    assert.equal(latest.schema, 2);
+    assert.deepEqual(Object.keys(latest.schools), ['花蓮縣']);
+    assert.equal(latest.schools['花蓮縣'][0].scope, '花蓮縣光復鄉大全國民小學');
     const history = read(dataDir, 'history/2026.json');
-    assert.equal(history.records.length, 2);                       // 臺北市、花蓮縣光復鄉；學校不逐筆記
-    assert.deepEqual(history.records.map((x) => x.city).sort(), ['臺北市', '花蓮縣']);
+    assert.equal(history.records.length, 3);                       // 臺北市、花蓮縣光復鄉、大全國小
+    assert.deepEqual(history.records.map((x) => x.scopeKind).sort(), ['area', 'city', 'school']);
 
     // 4. 頁面重新產生（ETag 變了）但內容一樣：不寫檔
     state.etag = '"v3"';
@@ -88,7 +90,7 @@ test('完整流程：無公告 → 304 → 公告 → 內容不變 → 心跳 �
     r = await go(at(2 * HOUR + 6 * HOUR));
     assert.equal(r.action, 'written');
     assert.equal(read(dataDir, 'latest.json').checkedAt, at(8 * HOUR).toISOString());
-    assert.equal(read(dataDir, 'history/2026.json').records.length, 2);   // 歷史沒有被重複寫入
+    assert.equal(read(dataDir, 'history/2026.json').records.length, 3);   // 歷史沒有被重複寫入
 
     // 6. 臺北市撤銷停班停課：latest 不再有臺北市，歷史保留並改成 false
     state.etag = '"v4"';
