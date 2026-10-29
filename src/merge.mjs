@@ -49,10 +49,11 @@ export function sameContent(a, b) {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
-// 寫檔的條件：內容變了、上次是錯誤狀態現在恢復了、或離上次寫檔已超過心跳間隔
+// 寫檔的條件：內容變了、上次是錯誤狀態現在恢復了、資料格式（schema）比程式舊、或離上次寫檔已超過心跳間隔
 export function shouldWrite(prev, content, now) {
   if (!prev) return true;
   if (prev.error) return true;
+  if (prev.schema !== SCHEMA) return true;
   if (!sameContent(contentOfLatest(prev), content)) return true;
   const last = Date.parse(prev.checkedAt || '');
   return !Number.isFinite(last) || now.getTime() - last >= HEARTBEAT_MS;

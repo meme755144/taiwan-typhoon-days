@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parsePage } from './parse.mjs';
-import { backoffFor, buildLatest, contentOf, inBackoff, mergeHistory, shouldWrite, withError } from './merge.mjs';
+import { SCHEMA, backoffFor, buildLatest, contentOf, inBackoff, mergeHistory, shouldWrite, withError } from './merge.mjs';
 
 export const SOURCE = 'https://www.dgpa.gov.tw/typh/daily/nds.html';
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -94,9 +94,12 @@ export async function run({
     return { action: 'skipped', exitCode: 0, message: `暫停中，到 ${prev.error.backoffUntil} 才會再試（${prev.error.message}）` };
   }
 
+  // 資料格式比程式舊時不帶 ETag，強制完整抓一次，才能把檔案升級成新格式（頁面沒變只會回 304，什麼都不會寫）
+  const validators = prev && prev.schema === SCHEMA ? prev.validators : null;
+
   let page;
   try {
-    page = await fetchPage(url, prev && prev.validators, retryDelaysMs);
+    page = await fetchPage(url, validators, retryDelaysMs);
   } catch (err) {
     // 網路不通、逾時、伺服器錯誤：不寫檔，也不讓這次執行「失敗」（失敗會寄通知信）。
     // 讀取資料的人看 checkedAt 就知道資料多久沒更新

@@ -106,6 +106,30 @@ test('完整流程：無公告 → 304 → 公告 → 內容不變 → 心跳 �
   }
 });
 
+test('舊格式（schema 1）的 latest.json：不帶 ETag 重抓，頁面沒變也升級成新格式', async () => {
+  const { state, server, url } = await startServer();
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'typhoon-'));
+  const go = (now) => run({ url, dataDir, now, retryDelaysMs: [0, 0] });
+  try {
+    state.etag = '"v1"';
+    await go(T0);
+    const file = path.join(dataDir, 'latest.json');
+    fs.writeFileSync(file, JSON.stringify({ ...read(dataDir, 'latest.json'), schema: 1 }));
+
+    // 只過 1 小時、頁面沒變：以前會回 304 然後什麼都不寫
+    const r = await go(at(HOUR));
+    assert.equal(r.action, 'written');
+    assert.equal(state.lastHeaders['if-none-match'], undefined);
+    assert.equal(read(dataDir, 'latest.json').schema, 2);
+
+    // 升級之後恢復正常：帶 ETag、回 304、不寫檔
+    assert.equal((await go(at(2 * HOUR))).action, 'unchanged');
+    assert.equal(state.lastHeaders['if-none-match'], '"v1"');
+  } finally {
+    server.close();
+  }
+});
+
 test('被擋（403）：保留舊資料、記錄錯誤、暫停期間不再連線、逐次加倍、恢復後清掉錯誤', async () => {
   const { state, server, url } = await startServer();
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'typhoon-'));
