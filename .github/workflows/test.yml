@@ -1,0 +1,17 @@
+name: test
+
+# 改了爬蟲或測試時跑一次（不連網，測試用假網站）。跟定時抓取分開，測試壞了不會讓抓取停掉
+on:
+  push:
+    paths: ['src/**', 'test/**', 'package.json', '.github/workflows/test.yml']
+  pull_request:
+    paths: ['src/**', 'test/**', 'package.json', '.github/workflows/test.yml']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --version
+      - run: node --test
