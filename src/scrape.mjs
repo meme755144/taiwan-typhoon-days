@@ -19,7 +19,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 
 function userAgent() {
   const repo = process.env.GITHUB_REPOSITORY;
-  return `TaiwanTyphoonDays/1.0 (+https://github.com/${repo || 'owner/taiwan-typhoon-days'}; low-frequency poll of one public page)`;
+  return `TaiwanTyphoonDays/1.0 (+https://github.com/${repo || 'meme755144/taiwan-typhoon-days'}; low-frequency poll of one public page)`;
 }
 
 function readJson(file, fallback) {
@@ -99,7 +99,7 @@ export async function run({
     page = await fetchPage(url, prev && prev.validators, retryDelaysMs);
   } catch (err) {
     // 網路不通、逾時、伺服器錯誤：不寫檔，也不讓這次執行「失敗」（失敗會寄通知信）。
-    // 使用者端看 checkedAt 就知道資料多久沒更新
+    // 讀取資料的人看 checkedAt 就知道資料多久沒更新
     return { action: 'unreachable', exitCode: 0, message: `抓不到頁面：${err.message}` };
   }
 

@@ -37,7 +37,7 @@ jobs:
         run: node src/scrape.mjs
 
       # 資料沒有變就不會有任何差異，也就不會 commit。
-      # 被擋、版面改了的時候爬蟲會讓上一步「失敗」（GitHub 才會寄通知信給你），但錯誤狀態要寫進 data/ 讓小工具看到，
+      # 被擋、版面改了的時候爬蟲會讓上一步「失敗」（GitHub 才會寄通知信給你），但錯誤狀態要寫進 data/ 讓讀取資料的人看到，
       # 所以這一步即使上一步失敗也要執行
       - name: Commit changes
         if: ${{ !cancelled() }}

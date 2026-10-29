@@ -4,7 +4,7 @@
 // 原則：資料沒變就不寫、不 commit，所以抓得再頻繁，repo 也不會長出一堆沒有意義的 commit。
 
 export const SCHEMA = 1;
-export const HEARTBEAT_MS = 6 * 60 * 60 * 1000;   // 就算沒有變化，每隔這段時間也寫一次 checkedAt，讓使用者端看得出資料還新
+export const HEARTBEAT_MS = 6 * 60 * 60 * 1000;   // 就算沒有變化，每隔這段時間也寫一次 checkedAt，讓讀取資料的人看得出資料還新
 export const KEEP_SCHOOL_LEVEL = false;           // 單一學校的停課（常見於山區學校）不逐筆存，只記每個縣市有幾所
 
 const isStop = (item) => item.work || item.school;
@@ -76,7 +76,7 @@ export function buildLatest({ content, parsed, source, validators, now }) {
   };
 }
 
-// 記錄一個錯誤：保留上次成功抓到的資料，只加上 error，使用者端才知道目前這份資料可能過期
+// 記錄一個錯誤：保留上次成功抓到的資料，只加上 error，讀取資料的人才知道目前這份資料可能過期
 export function withError(prev, { status, message, backoffMs, now }) {
   const base = prev || { schema: SCHEMA, state: 'none', cities: {}, schools: {}, unparsedText: '' };
   const previousError = base.error || null;

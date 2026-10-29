@@ -1,16 +1,16 @@
 # taiwan-typhoon-days
 
-定時抓取行政院人事行政總處的「[天然災害停止上班及上課情形](https://www.dgpa.gov.tw/typh/daily/nds.html)」，整理成 JSON 放在這個 repo 裡，並累積歷史紀錄。月曆小工具（CalendarWidget）只要讀這個 repo 的檔案，不用自己去爬。
+定時抓取行政院人事行政總處的「[天然災害停止上班及上課情形](https://www.dgpa.gov.tw/typh/daily/nds.html)」，整理成 JSON 放在這個 repo 裡，並累積歷史紀錄。其他程式只要讀這個 repo 的檔案，就不用各自去爬原始網頁。
 
 > **這不是官方資料。** 內容整理自人事總處的公開網頁，可能延遲、遺漏或解析錯誤，實際停班停課以官方公告為準。
 
 ## 資料
 
-直接讀 raw 網址（把 `OWNER` 換成你的帳號；用 `raw.githubusercontent.com`，不要用 jsDelivr，後者對分支檔案會快取很久）：
+直接讀 raw 網址（用 `raw.githubusercontent.com`，不要用 jsDelivr，後者對分支檔案會快取很久）：
 
 ```
-https://raw.githubusercontent.com/OWNER/taiwan-typhoon-days/main/data/latest.json
-https://raw.githubusercontent.com/OWNER/taiwan-typhoon-days/main/data/history/2026.json
+https://raw.githubusercontent.com/meme755144/taiwan-typhoon-days/main/data/latest.json
+https://raw.githubusercontent.com/meme755144/taiwan-typhoon-days/main/data/history/2026.json
 ```
 
 ### `data/latest.json`：目前頁面上的狀態
@@ -36,7 +36,7 @@ https://raw.githubusercontent.com/OWNER/taiwan-typhoon-days/main/data/history/20
 - `date`：這筆公告適用的日期（頁面上的「今天」「明天」已換算成日期）。
 - `scope`、`scopeKind`：`scope` 空的是整個縣市（`city`）；有寫的是鄉鎮區、村里（`area`）。單一學校（`school`）不放在這裡。
 - `work`、`school`：停止上班、停止上課。`period`／`from`：半天或從幾點開始，例如 `afternoon`、`13:00`；全天則是空字串。
-- 看不懂的句子會變成 `{ "unknown": true, "text": "…" }`，內容保留原文，**使用者端要把它當成「有公告，請自行查看」**，不能當成沒事。
+- 看不懂的句子會變成 `{ "unknown": true, "text": "…" }`，內容保留原文，**讀取資料的程式要把它當成「有公告，請自行查看」**，不能當成沒事。
 
 ### `data/history/{年}.json`：歷史紀錄
 
