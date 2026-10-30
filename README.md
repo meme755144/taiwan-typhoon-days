@@ -63,7 +63,33 @@ https://raw.githubusercontent.com/meme755144/taiwan-typhoon-days/main/data/histo
 | 09:00–11:59 | 下午或晚間停班課，10:30 前發布 | 每 10 分鐘 |
 | 其他時間 | 其他時間也可能隨時發布 | 每 30 分鐘 |
 
-GitHub Actions 的排程不準時，常延遲 5～30 分鐘，偶爾會跳過，所以這是「盡量」，不是保證。排程設定在 [`.github/workflows/scrape.yml`](.github/workflows/scrape.yml)。
+GitHub Actions 的排程不準時，常延遲 5～30 分鐘，高負載時還會直接跳過，所以這是「盡量」，不是保證。排程設定在 [`.github/workflows/scrape.yml`](.github/workflows/scrape.yml)。
+
+實測（2026-10-29 起）：這個 repo 的排程大約只跑了設定次數的一成，而且沒有規律，最長連續 7 個多小時完全沒跑。所以除了 GitHub 自己的排程，另外加了「外部觸發」當並行的備援，見下一節。
+
+### 外部觸發（備援）
+
+用一個外部的定時服務（例如 [cron-job.org](https://cron-job.org)）定時呼叫 GitHub 的 API，叫 `scrape` 工作流程跑一次。它和 GitHub 自己的排程**並行**：
+
+- 兩邊同時觸發也沒關係。`scrape.yml` 裡的 `concurrency` 讓同一時間只會跑一個，其餘最多排一個等待，多的會被取消（Actions 列表上顯示 `cancelled`，不是失敗，也不會寄通知信）。
+- 後跑的那次通常頁面沒變，只回 304，不會寫檔、不會 commit。
+- 外部服務壞了或 token 過期時，GitHub 自己的排程還在，只是回到比較不穩的狀態。
+
+設定步驟（外部服務的介面可能改版，重點是下面這幾個值）：
+
+1. 在 GitHub 建一個 **fine-grained personal access token**：Settings → Developer settings → Personal access tokens → Fine-grained tokens。
+   - Repository access 選 **Only select repositories**，只選這個 repo。
+   - Permissions → Repository permissions → **Actions: Read and write**，其餘都不給。
+   - 期限自己決定，**不要用預設的 30 天**（過期後觸發會全部失敗，而且不會自己好）。個人帳號可以選「不過期」（組織或企業的政策可能禁止）。取捨：不過期不會突然停擺，但 token 外洩後會一直有效，直到你自己撤銷；設期限（例如 1 年）外洩時有自動止損點，但要記得到期前換新，忘了就停擺。這個 token 只有這個 repo 的 Actions 讀寫權限，外洩最糟是別人能一直觸發爬蟲，不能改程式；所以兩種都合理，容易忘記換的人選不過期比較實際。設了期限就在自己的行事曆記下到期前的提醒。
+   - token 只會顯示一次，貼到外部服務之後不要留在別的地方，也不要放進 repo。
+2. 在外部服務建一個定時工作：
+   - 網址：`https://api.github.com/repos/<帳號>/<repo>/actions/workflows/scrape.yml/dispatches`
+   - 方法：`POST`，內容（body）：`{"ref":"main"}`
+   - 標頭：`Authorization: Bearer <token>`、`Accept: application/vnd.github+json`、`X-GitHub-Api-Version: 2022-11-28`、`User-Agent: typhoon-days-trigger`（GitHub 的 API 一定要有 `User-Agent`）、`Content-Type: application/json`
+   - 頻率：最簡單是全天每 10 分鐘。頁面沒更新時只回 304，負擔很小；想完全對齊上面的表格，就在 18:00–23:59、04:00–05:59、09:00–11:59（台灣時間）每 10 分鐘，其餘時間每 30 分鐘。注意外部服務的時區設定。
+   - **開啟失敗通知**（請求失敗或回應不是 204 時寄信給你）。
+3. 先在外部服務按「立即執行」，到 Actions 分頁應該會出現一筆 `workflow_dispatch`；成功時 API 回應是 `204`，沒有內容。
+4. 隔一兩天回來看：Actions 列表有沒有穩定每 10 分鐘出現 `workflow_dispatch`，以及 `data/latest.json` 的 `checkedAt` 有沒有持續更新（沒變化時最多每 6 小時才會寫一次，所以看 `checkedAt` 要看這個間隔）。
 
 ### 寫入頻率（commit）
 
@@ -121,4 +147,4 @@ DATA_DIR=/tmp/x node src/scrape.mjs  # 寫到別的資料夾
 1. 建立一個**公開**的 GitHub repo，把這個資料夾 push 上去，預設分支用 `main`。公開 repo 的 Actions 分鐘數不限；私有的每月只有 2000 分鐘，這樣的頻率會超過。
 2. Settings → Actions → General → Workflow permissions 維持預設的「Read repository contents and packages permissions」就好，不用改。工作流程裡已經宣告了 `contents: write`，會蓋過這個預設值。只有當機器人 push 因為權限被擋（例如被組織政策限制）時，才需要改成「Read and write permissions」。
 3. 到 Actions 分頁 → `scrape` → Run workflow，手動跑一次，看輸出與 `data/latest.json`。這一步可以確認 GitHub 的主機連得上人事總處的網站；被擋的話，這次會失敗，並在 `latest.json` 寫入 `error`。
-4. 之後會依排程自動跑。公開 repo 若 60 天沒有任何活動，GitHub 可能停用排程；本專案至少每 6 小時會有一次 commit，應該不會發生。如果發現 `checkedAt` 很久沒更新，先到 Actions 分頁看排程是否被停用。
+4. 之後會依排程自動跑，但 GitHub 的排程不穩，建議照上面「外部觸發（備援）」再設一組並行的。公開 repo 若 60 天沒有任何活動，GitHub 可能停用排程；本專案至少每 6 小時會有一次 commit，應該不會發生。如果發現 `checkedAt` 很久沒更新，先到 Actions 分頁看排程是否被停用。
