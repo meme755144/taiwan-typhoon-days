@@ -4,6 +4,7 @@
   "description": "定時抓取人事行政總處的天然災害停止上班及上課情形，整理成 JSON 並累積歷史紀錄",
   "type": "module",
   "private": true,
+  "license": "MIT",
   "engines": { "node": ">=20" },
   "scripts": {
     "scrape": "node src/scrape.mjs",
