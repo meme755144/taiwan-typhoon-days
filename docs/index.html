@@ -90,6 +90,8 @@
 
   var RAW_URL = 'https://raw.githubusercontent.com/meme755144/taiwan-typhoon-days/main/data/latest.json';
   var STALE_HOURS = 8;          // 超過這麼久沒更新，就不能把「沒有公告」當成真的沒有公告
+  var RUN_STALE_HOURS = 3;      // 爬蟲超過這麼久沒有成功跑過，同樣不能把「沒有公告」當成真的沒有公告
+  var RUNS_URL = 'https://api.github.com/repos/meme755144/taiwan-typhoon-days/actions/workflows/scrape.yml/runs?status=success&per_page=1';
   var REFRESH_MS = 5 * 60 * 1000;
   var CITY_ORDER = ['臺北市', '新北市', '基隆市', '桃園市', '新竹市', '新竹縣', '苗栗縣', '臺中市', '彰化縣', '南投縣', '雲林縣',
                     '嘉義市', '嘉義縣', '臺南市', '高雄市', '屏東縣', '宜蘭縣', '花蓮縣', '臺東縣', '澎湖縣', '金門縣', '連江縣'];
@@ -101,6 +103,8 @@
   if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
     var m = /[?&]data=([^&]+)/.exec(location.search);
     if (m) DATA_URL = decodeURIComponent(m[1]);
+    var mr = /[?&]run=([^&]+)/.exec(location.search);
+    if (mr) RUNS_URL = decodeURIComponent(mr[1]);
   }
 
   var statusEl = document.getElementById('status');
@@ -171,19 +175,28 @@
     (lines || []).forEach(function (t) { statusEl.appendChild(el('p', '', t)); });
   }
 
-  function render(data) {
+  function render(data, lastRun) {
     bodyEl.textContent = '';
 
     var checkedAt = data.checkedAt;
     var staleMs = Date.now() - new Date(checkedAt).getTime();
-    var stale = isNaN(staleMs) || staleMs > STALE_HOURS * 3600 * 1000;
+    var dataStale = isNaN(staleMs) || staleMs > STALE_HOURS * 3600 * 1000;
+    // 爬蟲最近一次成功執行（從 GitHub Actions 讀）；讀不到就只看資料的寫入時間
+    var runMs = lastRun ? Date.now() - new Date(lastRun).getTime() : NaN;
+    var runStale = !isNaN(runMs) && runMs > RUN_STALE_HOURS * 3600 * 1000;
+    var stale = dataStale || runStale;
     var cities = data.cities && typeof data.cities === 'object' ? data.cities : {};
     var schools = data.schools && typeof data.schools === 'object' ? data.schools : {};
     var hitCities = Object.keys(cities).filter(function (c) { return (cities[c] || []).length > 0; });
 
-    // 時間
-    timesEl.textContent = '人事總處頁面更新：' + (data.pageUpdatedAt ? taipei(data.pageUpdatedAt) : '—') +
-      '　｜　爬蟲最近一次寫入資料：' + (checkedAt ? taipei(checkedAt) + '（' + ago(checkedAt) + '）' : '—') + '（沒有變化時最多每 6 小時才會更新一次）';
+    // 時間：爬蟲「最近一次檢查」才是看資料新不新的依據。資料檔沒有變化時最多每 6 小時才會寫入一次，
+    // 所以「資料最後寫入」可能是好幾個小時前，那不代表爬蟲沒在跑
+    timesEl.textContent = '';
+    timesEl.appendChild(document.createTextNode('爬蟲最近一次檢查：' +
+      (lastRun ? taipei(lastRun) + '（' + ago(lastRun) + '）' : '暫時讀不到，請看下面的資料寫入時間')));
+    timesEl.appendChild(document.createElement('br'));
+    timesEl.appendChild(document.createTextNode('資料最後寫入：' + (checkedAt ? taipei(checkedAt) + '（' + ago(checkedAt) + '）' : '—') +
+      '（沒有變化時最多每 6 小時才會寫入一次）'));
     var btn = el('button', '', '重新整理');
     btn.type = 'button';
     btn.addEventListener('click', load);
@@ -192,7 +205,9 @@
     // 狀態橫幅：資料有問題的時候，不能顯示成「沒有公告」
     if (data.error) {
       setStatus('warn', '爬蟲回報了錯誤，下面的資料可能不是最新的', [String(data.error), '請直接看官方網頁確認。']);
-    } else if (stale) {
+    } else if (runStale) {
+      setStatus('warn', '爬蟲超過 ' + RUN_STALE_HOURS + ' 小時沒有成功執行，資料可能不是最新的', ['下面的內容不能當成「目前沒有公告」，請直接看官方網頁確認。']);
+    } else if (dataStale) {
       setStatus('warn', '資料超過 ' + STALE_HOURS + ' 小時沒有更新，爬蟲可能停了', ['下面的內容不能當成「目前沒有公告」，請直接看官方網頁確認。']);
     } else if (data.state === 'unparsed') {
       setStatus('warn', '頁面上有內容，但程式看不懂', ['請直接看官方網頁。']);
@@ -247,10 +262,23 @@
     bodyEl.appendChild(grid);
   }
 
+  function loadLastRun() {
+    // 讀不到（沒網路、被限流）不影響主要資料：回傳 null
+    return fetch(RUNS_URL, { cache: 'no-cache', headers: { Accept: 'application/vnd.github+json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        var run = j && j.workflow_runs && j.workflow_runs[0];
+        return run ? (run.run_started_at || run.updated_at || null) : null;
+      })
+      .catch(function () { return null; });
+  }
+
   function load() {
-    fetch(DATA_URL, { cache: 'no-cache' })
-      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
-      .then(render)
+    Promise.all([
+      fetch(DATA_URL, { cache: 'no-cache' }).then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); }),
+      loadLastRun()
+    ])
+      .then(function (res) { render(res[0], res[1]); })
       .catch(function (e) {
         // 讀不到資料時，不能留著上一次的「沒有公告」
         bodyEl.textContent = '';
