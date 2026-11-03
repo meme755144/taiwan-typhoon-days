@@ -1,5 +1,7 @@
 # taiwan-typhoon-days
 
+**[查看目前各縣市的停班停課狀態](https://meme755144.github.io/taiwan-typhoon-days/)**（非官方，以人事總處的公告為準）
+
 定時抓取行政院人事行政總處的「[天然災害停止上班及上課情形](https://www.dgpa.gov.tw/typh/daily/nds.html)」，整理成 JSON 放在這個 repo 裡，並累積歷史紀錄。其他程式只要讀這個 repo 的檔案，就不用各自去爬原始網頁。
 
 ## 免責聲明
@@ -23,7 +25,7 @@ https://raw.githubusercontent.com/meme755144/taiwan-typhoon-days/main/data/histo
 
 ## 狀態頁
 
-想直接看目前各縣市的停班停課狀態：<https://meme755144.github.io/taiwan-typhoon-days/>。這一頁每 5 分鐘自動更新，資料太舊、爬蟲回報錯誤或看不懂頁面時會顯示警告，不會顯示成「沒有公告」。一樣**不是官方資料，請以人事總處的公告為準**。怎麼啟用與運作的細節見 [維運與開發](docs/OPERATIONS.md)。
+想直接看目前各縣市的停班停課狀態，請開[停班停課狀態頁](https://meme755144.github.io/taiwan-typhoon-days/)。這一頁每 5 分鐘自動更新，資料太舊、爬蟲回報錯誤或看不懂頁面時會顯示警告，不會顯示成「沒有公告」。一樣**不是官方資料，請以人事總處的公告為準**。怎麼啟用與運作的細節見 [維運與開發](docs/OPERATIONS.md)。
 
 ## 資料新不新
 
