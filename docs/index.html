@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>停班停課整理（非官方）</title>
+<style>
+  :root {
+    --bg: #f6f7fb; --card: #ffffff; --text: #1d1f2b; --muted: #666a80; --border: #dcdfe9;
+    --ok: #1b7f4b; --ok-bg: #e5f5ec;
+    --alert: #b3261e; --alert-bg: #fdeceb;
+    --warn: #8a5a00; --warn-bg: #fff3d6;
+    --link: #1a56c4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14151f; --card: #1e2030; --text: #eceef8; --muted: #9a9db5; --border: #34374d;
+      --ok: #6fd69a; --ok-bg: #173826;
+      --alert: #ff9a93; --alert-bg: #43201e;
+      --warn: #f2c66b; --warn-bg: #3d3014;
+      --link: #8ab4ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 -apple-system, "Segoe UI", "Microsoft JhengHei", "PingFang TC", sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 28px 0 10px; }
+  a { color: var(--link); }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 16px; }
+  .notice { border: 1px solid var(--alert); background: var(--alert-bg); color: var(--alert); border-radius: 10px; padding: 10px 14px; font-size: 14px; margin: 0 0 16px; }
+  .status { border-radius: 12px; padding: 14px 16px; margin: 0 0 12px; border: 1px solid var(--border); background: var(--card); }
+  .status strong { font-size: 18px; }
+  .status.ok { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+  .status.alert { background: var(--alert-bg); border-color: var(--alert); color: var(--alert); }
+  .status.warn { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); }
+  .status p { margin: 6px 0 0; font-size: 14px; }
+  .times { color: var(--muted); font-size: 13px; margin: 0 0 4px; }
+  .times button { font: inherit; font-size: 13px; margin-left: 8px; padding: 1px 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 6px; cursor: pointer; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+  .city { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+  .city h3 { font-size: 16px; margin: 0 0 4px; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .city.hit { border-color: var(--alert); }
+  .city.hit h3 { color: var(--alert); }
+  .city.none { color: var(--muted); }
+  .city.none h3 { font-weight: 500; }
+  .tag { font-size: 12px; font-weight: 500; padding: 1px 8px; border-radius: 999px; background: var(--alert-bg); color: var(--alert); white-space: nowrap; }
+  .city.none .tag { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+  .item { font-size: 14px; padding: 4px 0; border-top: 1px dashed var(--border); }
+  .item:first-of-type { border-top: 0; }
+  .item .what { font-weight: 600; }
+  .item .scope { color: var(--muted); }
+  .item.unknown { color: var(--warn); }
+  details { margin-top: 6px; font-size: 14px; }
+  summary { cursor: pointer; color: var(--muted); }
+  pre { white-space: pre-wrap; word-break: break-word; background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 13px; }
+  footer { margin-top: 32px; color: var(--muted); font-size: 13px; }
+  footer p { margin: 4px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>停班停課整理（非官方）</h1>
+  <p class="sub">每幾分鐘讀取一次行政院人事行政總處的公開網頁，整理成各縣市的停班停課狀態。</p>
+  <div class="notice">
+    這不是官方資料，可能延遲、遺漏或解析錯誤。實際停班停課<strong>一律以<a id="official" href="https://www.dgpa.gov.tw/typh/daily/nds.html" rel="noopener">人事行政總處的官方公告</a>為準</strong>，請勿作為影響人身安全或財產決策的唯一依據。
+  </div>
+
+  <div id="status" class="status"><strong>讀取中…</strong></div>
+  <p id="times" class="times"></p>
+
+  <div id="body"></div>
+
+  <footer>
+    <p>資料：<a href="https://github.com/meme755144/taiwan-typhoon-days/blob/main/data/latest.json" rel="noopener">data/latest.json</a>（格式說明見 <a href="https://github.com/meme755144/taiwan-typhoon-days#資料格式" rel="noopener">README</a>）。這個頁面每 5 分鐘自動更新一次；資料來源本身的快取最多約 5 分鐘。</p>
+    <p>程式碼以 MIT 授權；資料內容的權利屬於原機關，本專案沒有另外授權。專案：<a href="https://github.com/meme755144/taiwan-typhoon-days" rel="noopener">meme755144/taiwan-typhoon-days</a></p>
+  </footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var RAW_URL = 'https://raw.githubusercontent.com/meme755144/taiwan-typhoon-days/main/data/latest.json';
+  var STALE_HOURS = 8;          // 超過這麼久沒更新，就不能把「沒有公告」當成真的沒有公告
+  var REFRESH_MS = 5 * 60 * 1000;
+  var CITY_ORDER = ['臺北市', '新北市', '基隆市', '桃園市', '新竹市', '新竹縣', '苗栗縣', '臺中市', '彰化縣', '南投縣', '雲林縣',
+                    '嘉義市', '嘉義縣', '臺南市', '高雄市', '屏東縣', '宜蘭縣', '花蓮縣', '臺東縣', '澎湖縣', '金門縣', '連江縣'];
+  var PERIODS = { morning: '上午', noon: '中午', afternoon: '下午', evening: '晚上' };
+  var WEEK = ['日', '一', '二', '三', '四', '五', '六'];
+
+  // 只有在本機（開發測試）才允許用 ?data=/某個檔 換成別的資料；正式網站一律讀固定的網址，不接受網址參數
+  var DATA_URL = RAW_URL;
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    var m = /[?&]data=([^&]+)/.exec(location.search);
+    if (m) DATA_URL = decodeURIComponent(m[1]);
+  }
+
+  var statusEl = document.getElementById('status');
+  var timesEl = document.getElementById('times');
+  var bodyEl = document.getElementById('body');
+
+  // 全部用 textContent 建立畫面，資料裡的字不會被當成 HTML
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  function taipei(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return String(iso || '');
+    return d.toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false, month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  function ago(iso) {
+    var min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (isNaN(min)) return '';
+    if (min < 1) return '剛剛';
+    if (min < 60) return min + ' 分鐘前';
+    var h = Math.floor(min / 60);
+    return h < 48 ? h + ' 小時前' : Math.floor(h / 24) + ' 天前';
+  }
+
+  function dateLabel(iso) {
+    var p = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+    if (!p) return '';
+    var d = new Date(Date.UTC(+p[1], +p[2] - 1, +p[3]));
+    return (+p[2]) + '/' + (+p[3]) + '（' + WEEK[d.getUTCDay()] + '）';
+  }
+
+  function whatText(it) {
+    var s;
+    if (it.work && it.school) s = '停止上班、停止上課';
+    else if (it.school) s = '照常上班、停止上課';
+    else if (it.work) s = '停止上班、照常上課';
+    else s = '照常上班上課';
+    var when = it.period && PERIODS[it.period] ? PERIODS[it.period] : '';
+    if (it.from) when += (when ? ' ' : '') + it.from + ' 起';
+    return when ? when + ' ' + s : s;
+  }
+
+  function itemRow(it, prefix) {
+    if (it.unknown) {
+      var u = el('div', 'item unknown');
+      u.appendChild(el('span', 'what', '有公告，但程式看不懂：'));
+      u.appendChild(document.createTextNode(String(it.text || '')));
+      return u;
+    }
+    var row = el('div', 'item');
+    var head = dateLabel(it.date);
+    if (head) row.appendChild(el('span', 'scope', head + ' '));
+    if (prefix) row.appendChild(el('span', 'scope', prefix + ' '));
+    else if (it.scope) row.appendChild(el('span', 'scope', it.scope + ' '));
+    row.appendChild(el('span', 'what', whatText(it)));
+    return row;
+  }
+
+  function setStatus(kind, title, lines) {
+    statusEl.className = 'status ' + kind;
+    statusEl.textContent = '';
+    statusEl.appendChild(el('strong', '', title));
+    (lines || []).forEach(function (t) { statusEl.appendChild(el('p', '', t)); });
+  }
+
+  function render(data) {
+    bodyEl.textContent = '';
+
+    var checkedAt = data.checkedAt;
+    var staleMs = Date.now() - new Date(checkedAt).getTime();
+    var stale = isNaN(staleMs) || staleMs > STALE_HOURS * 3600 * 1000;
+    var cities = data.cities && typeof data.cities === 'object' ? data.cities : {};
+    var schools = data.schools && typeof data.schools === 'object' ? data.schools : {};
+    var hitCities = Object.keys(cities).filter(function (c) { return (cities[c] || []).length > 0; });
+
+    // 時間
+    timesEl.textContent = '人事總處頁面更新：' + (data.pageUpdatedAt ? taipei(data.pageUpdatedAt) : '—') +
+      '　｜　爬蟲最近一次寫入資料：' + (checkedAt ? taipei(checkedAt) + '（' + ago(checkedAt) + '）' : '—') + '（沒有變化時最多每 6 小時才會更新一次）';
+    var btn = el('button', '', '重新整理');
+    btn.type = 'button';
+    btn.addEventListener('click', load);
+    timesEl.appendChild(btn);
+
+    // 狀態橫幅：資料有問題的時候，不能顯示成「沒有公告」
+    if (data.error) {
+      setStatus('warn', '爬蟲回報了錯誤，下面的資料可能不是最新的', [String(data.error), '請直接看官方網頁確認。']);
+    } else if (stale) {
+      setStatus('warn', '資料超過 ' + STALE_HOURS + ' 小時沒有更新，爬蟲可能停了', ['下面的內容不能當成「目前沒有公告」，請直接看官方網頁確認。']);
+    } else if (data.state === 'unparsed') {
+      setStatus('warn', '頁面上有內容，但程式看不懂', ['請直接看官方網頁。']);
+    } else if (data.state === 'announced') {
+      setStatus('alert', '目前有 ' + hitCities.length + ' 個縣市有停班或停課的公告', ['單一學校的停課列在各縣市底下。']);
+    } else if (data.state === 'none') {
+      setStatus('ok', '目前沒有停班停課公告', ['依人事總處頁面（' + (data.pageDate || '—') + '）整理。']);
+    } else {
+      setStatus('warn', '資料格式不認得', ['請直接看官方網頁。']);
+    }
+
+    // 看不懂的頁面文字
+    if (data.state === 'unparsed' && data.unparsedText) {
+      bodyEl.appendChild(el('h2', '', '頁面上的原文'));
+      bodyEl.appendChild(el('pre', '', String(data.unparsedText)));
+    }
+
+    // 沒有任何公告：橫幅就夠了，不用列 22 個縣市（資料過舊、有錯誤或看不懂的時候，更不能列一排「未見公告」讓人誤會）
+    var anyHit = hitCities.length > 0 || Object.keys(schools).some(function (c) { return Array.isArray(schools[c]) && schools[c].length > 0; });
+    if (!anyHit) return;
+
+    // 各縣市：先照一般的縣市順序，資料裡有、但不在清單上的縣市排在後面
+    var names = CITY_ORDER.slice();
+    Object.keys(cities).concat(Object.keys(schools)).forEach(function (c) { if (names.indexOf(c) < 0) names.push(c); });
+    // 有公告的縣市排在最前面（手機上才不用捲過一長串「未見公告」）；各自內部維持原本的順序
+    function hasEntries(c) { return (Array.isArray(cities[c]) && cities[c].length > 0) || (Array.isArray(schools[c]) && schools[c].length > 0); }
+    names = names.filter(hasEntries).concat(names.filter(function (c) { return !hasEntries(c); }));
+
+    bodyEl.appendChild(el('h2', '', '各縣市'));
+    var grid = el('div', 'grid');
+    names.forEach(function (name) {
+      var list = Array.isArray(cities[name]) ? cities[name] : [];
+      var schoolList = Array.isArray(schools[name]) ? schools[name] : [];
+      var hit = list.length > 0 || schoolList.length > 0;
+      var card = el('div', 'city ' + (hit ? 'hit' : 'none'));
+      var h = el('h3');
+      h.appendChild(el('span', '', name));
+      h.appendChild(el('span', 'tag', hit ? '有公告' : '未見公告'));
+      card.appendChild(h);
+
+      list.slice().sort(function (a, b) { return String(a.date || '').localeCompare(String(b.date || '')); })
+          .forEach(function (it) { card.appendChild(itemRow(it)); });
+
+      if (schoolList.length > 0) {
+        var d = el('details');
+        d.appendChild(el('summary', '', '單一學校停課（' + schoolList.length + '）'));
+        schoolList.forEach(function (it) { d.appendChild(itemRow(it)); });
+        card.appendChild(d);
+      }
+      grid.appendChild(card);
+    });
+    bodyEl.appendChild(grid);
+  }
+
+  function load() {
+    fetch(DATA_URL, { cache: 'no-cache' })
+      .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+      .then(render)
+      .catch(function (e) {
+        // 讀不到資料時，不能留著上一次的「沒有公告」
+        bodyEl.textContent = '';
+        timesEl.textContent = '';
+        setStatus('warn', '讀不到資料', [String(e && e.message ? e.message : e), '請直接看官方網頁。']);
+      });
+  }
+
+  load();
+  setInterval(load, REFRESH_MS);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) load(); });
+}());
+</script>
+</body>
+</html>

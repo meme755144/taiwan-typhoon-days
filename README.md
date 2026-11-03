@@ -21,6 +21,10 @@ https://raw.githubusercontent.com/meme755144/taiwan-typhoon-days/main/data/histo
 
 `history/{年}.json` 只有在頁面出現過停班停課公告之後才會出現；沒有颱風的日子，`data/` 底下只有 `latest.json`，這是正常的。
 
+## 狀態頁
+
+想直接看目前各縣市的停班停課狀態：<https://meme755144.github.io/taiwan-typhoon-days/>。這一頁每 5 分鐘自動更新，資料太舊、爬蟲回報錯誤或看不懂頁面時會顯示警告，不會顯示成「沒有公告」。一樣**不是官方資料，請以人事總處的公告為準**。怎麼啟用與運作的細節見 [維運與開發](docs/OPERATIONS.md)。
+
 ## 資料新不新
 
 - 爬蟲大約每 10 到 30 分鐘抓一次，但 GitHub 的排程不準時，所以是「盡量」，不是保證。

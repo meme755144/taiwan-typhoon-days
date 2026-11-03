@@ -79,6 +79,20 @@ GitHub Actions 的排程不準時，常延遲 5～30 分鐘，高負載時還會
 
 > **注意：** 人事總處網站的 `robots.txt` 寫的是 `User-agent: *` 全部 `Disallow: /`（只放行 Googlebot）。這個專案抓的就是那個頁面，所以公開、散布或大量使用之前，請自己評估。
 
+## 狀態頁（GitHub Pages）
+
+[`docs/index.html`](index.html) 是一頁靜態網頁，把 `data/latest.json` 整理成各縣市的停班停課狀態給人看：頂端的橫幅（目前沒有公告、有幾個縣市有公告、資料太舊、看不懂、讀不到），底下是 22 個縣市的卡片（有公告的排最前面，單一學校的停課收在各縣市底下的摺疊裡）。
+
+**啟用：** GitHub 的 Settings → Pages → Build and deployment → Source 選「Deploy from a branch」，Branch 選 `main`、資料夾選 `/docs`，存檔。網址是 `https://meme755144.github.io/taiwan-typhoon-days/`。這一步只能在網頁上做，程式沒辦法替你啟用。
+
+**怎麼運作：**
+
+- 網頁開啟後，用瀏覽器直接去讀 `raw.githubusercontent.com` 上的 `latest.json`（那個網址允許跨網站讀取），之後每 5 分鐘自動重讀一次。資料來源本身有約 5 分鐘的快取。網頁本身不需要定時更新，也不需要爬蟲另外產生檔案。
+- 資料有問題時，**不會顯示成「沒有公告」**：`checkedAt` 超過 8 小時沒更新、`error` 有內容、`state` 是 `unparsed`，或讀不到資料，都會顯示警告橫幅，並請使用者看官方網頁；這幾種情況也不會列出整排「未見公告」的縣市卡片。
+- 所有來自資料的文字都用 `textContent` 放進畫面，資料裡就算有 HTML 也不會被執行。
+- 開發測試：在 `localhost`／`127.0.0.1` 上才能用 `?data=/某個檔` 換成別的資料；正式網站一律讀固定的網址，不接受網址參數。
+- 啟用 Pages 之後，機器人每次 commit 資料，GitHub 都會跟著重新部署一次網頁（Actions 分頁會多出「pages build and deployment」的紀錄）。資料沒變時最多每 6 小時才 commit 一次，所以次數不多；公開 repo 不收費。
+
 ## 解析的依據
 
 - 句子的格式是用 2024–2026 年的歷次公告整理出來的，一共 24 種句型（例如「明天停止上班、停止上課。」「今天下午01:00起停止上班、停止上課。」「今天已達停止上班及上課標準。」），[`test/parse.test.mjs`](../test/parse.test.mjs) 全部都有測。「已達標準」視同停班停課。
