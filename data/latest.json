@@ -1,16 +1,16 @@
 {
   "schema": 2,
   "source": "https://www.dgpa.gov.tw/typh/daily/nds.html",
-  "checkedAt": "2026-11-17T10:12:15.338Z",
+  "checkedAt": "2026-11-17T16:12:16.851Z",
   "pageDate": "2026-11-17",
-  "pageUpdatedAt": "2026-11-17T17:58:15+08:00",
+  "pageUpdatedAt": "2026-11-17T23:58:17+08:00",
   "state": "none",
   "cities": {},
   "schools": {},
   "unparsedText": "",
   "validators": {
-    "etag": "W/\"6ab5bf2a7a76dd1:0\"",
-    "lastModified": "Tue, 17 Nov 2026 09:58:16 GMT"
+    "etag": "W/\"e438ab76ac76dd1:0\"",
+    "lastModified": "Tue, 17 Nov 2026 15:58:18 GMT"
   },
   "error": null
 }
